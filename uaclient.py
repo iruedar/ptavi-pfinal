@@ -46,4 +46,43 @@ if __name__ == "__main__":
     Handler = XMLHandler()
     parser.setContentHandler(Handler)
     parser.parse(open(CONFIG))
-    print(Handler.get_tags())
+    configtags = Handler.get_tags()
+
+    username = configtags[0][1]['username']
+    passwd = configtags[0][1]['passwd']
+    uaserv_ip = configtags[1][1]['ip']
+    uaserv_port = str(configtags[1][1]['puerto'])
+    audio_port = int(configtags[1][1]['puerto'])
+    proxy_ip = configtags[3][1]['ip']
+    proxy_port = int(configtags[3][1]['puerto'])
+    log = configtags[4][1]['path']
+    audio = configtags[5][1]['path']
+
+with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+    my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    my_socket.connect((proxy_ip, proxy_port))
+
+    if METHOD == 'REGISTER':
+        LINE = METHOD + ' sip:' + username + ':' + uaserv_port
+        LINE += ' SIP/2.0\r\n' + 'Expires:' + OPTION + '\r\n\r\n'
+    elif METHOD == 'INVITE':
+        LINE = METHOD + ' sip:' + OPTION + ' SIP/2.0\r\n'
+        SDP = 'Content-Type: application/sdp\r\n\r\n'
+        SDP += 'v=0\r\n' + 'o=' + username + ' ' + uaserv_ip + '\r\n'
+        SDP += 's=sesion prueba\r\n' + 't=0\r\n'
+        SDP += 'm=audio ' + audio_port + ' RTP\r\n\r\n'
+        LINE += SDP
+    elif METHOD == 'BYE':
+        LINE = METHOD + ' sip:' + OPTION + ' SIP/2.0\r\n\r\n'
+    print('Enviando: ' + LINE)
+    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
+    data = my_socket.recv(1024)  
+    answer = data.decode('utf-8').split(' ')
+    if answer[1] == '100':
+        LINE = 'ACK' + ' sip:' + OPTION + 'SIP/2.0\r\n\r\n'
+        my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
+    print(data.decode('utf-8'))
+    print("Terminando socket...")
+
+print("Fin.")
+        
