@@ -10,7 +10,7 @@ import socketserver
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 
-USAGE = 'python3 uaclient.py config'
+USAGE = 'python3 uaserver.py config'
 
 try:
     CONFIG = sys.argv[1]
@@ -52,7 +52,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             brline = line.decode('utf-8').split(' ')
             if ('sip:' not in brline[1] or '@' not in brline[1] or
                brline[2] != 'SIP/2.0\r\n\r\n'):
-                self.wfile.write(b'SIP/2.0 Bad Request\r\n\r\n')
+                self.wfile.write(b'SIP/2.0 400 Bad Request\r\n\r\n')
             else:
                 if METHOD in METHODS:
                     print(METHOD + ' recieved')
@@ -76,3 +76,20 @@ if __name__ == "__main__":
     parser.setContentHandler(Handler)
     parser.parse(open(CONFIG))
     print(Handler.get_tags())
+    configtags = Handler.get_tags(
+    
+    username = configtags[0][1]['username']
+    passwd = configtags[0][1]['passwd']
+    uaserv_ip = configtags[1][1]['ip']
+    uaserv_port = int(configtags[1][1]['puerto'])
+    audio_port = int(configtags[1][1]['puerto'])
+    proxy_ip = configtags[3][1]['ip']
+    proxy_port = int(configtags[3][1]['puerto'])
+    log = configtags[4][1]['path']
+    audio = configtags[5][1]['path']
+    serv = socketserver.UDPServer((uaserv_ip, uaserv_port), EchoHandler)
+    print("Listening...")
+    try:
+        serv.serve_forever()
+    except KeyboardInterrupt:
+        print('servidor finalizado')
