@@ -6,9 +6,11 @@ Programa user agent client
 
 import sys
 import socket
+import json
 import socketserver
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+from datetime import datetime, date, time, timedelta
 
 USAGE = 'python3 uaserver.py config'
 
@@ -37,34 +39,59 @@ class XMLHandler(ContentHandler):
         return self.list_element
 
 class EchoHandler(socketserver.DatagramRequestHandler):
+
+    dicc = {}
+
+    def json2register(self):
+        """Ver si registered.json existe."""
+        try:
+            with open('registered.json', 'r') as json_file:
+                self.dicc = json.load(json_file)
+        except:
+            pass
+
+    def register2json(self):
+        """Crea registered.json file."""
+        with open('registered.json', 'w') as json_file:
+            json.dump(self.dicc, json_file, indent=3)
+
     def handle(self):
-        for line in self.rfile:
+        self.json2register()
+        while 1:
+            # Leyendo línea a línea lo que nos envía el cliente
+            line = self.rfile.read()
             if len(line) == 0:
                 break
-
-            METHOD = line.decode('utf-8').split(' ')[0]
-            METHODS = 'INVITE', 'ACK', 'BYE'
-            RTP = './mp32rtp -i 127.0.0.1 -p 23032 < ' + FILE
+            receive = line.decode('utf-8').split()
+            METHOD = receive[0]
+            METHODS = 'REGISTER', 'INVITE', 'BYE'
             brline = line.decode('utf-8').split(' ')
-            if ('sip:' not in brline[1] or '@' not in brline[1] or
-               brline[2] != 'SIP/2.0\r\n\r\n'):
-                self.wfile.write(b'SIP/2.0 400 Bad Request\r\n\r\n')
-            else:
+            user = receive[1].split(':')[1]
+            print(brline[1].split(':')[0])
+            if ('sip:' not in brline[1] or brline[2] != 'SIP/2.0\r\n\r\n'):
                 if METHOD in METHODS:
                     print(METHOD + ' recieved')
                     if METHOD == 'REGISTER':
-                        self.wwile.write(b'SIP/2.0 401 Unauthorized\r\n\r\n')
+                        if user in self.dicc:
+                            self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+                        else:
+                            if len(receive) == 4:
+                                self.wfile.write(b'SIP/2.0 401 Unauthorized\r\n')
+                            elif len(receive) == 9:
+                                self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+                                self.dicc[user] = (self.client_address[0],
+                                                   self.client_address[1])
                     if METHOD == 'INVITE':
                         self.wfile.write(b'SIP/2.0 100 Trying\r\n\r\n')
                         self.wfile.write(b'SIP/2.0 180 Ringing\r\n\r\n')
                         self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
                     elif METHOD == 'BYE':
                         self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
-                    elif METHOD == 'ACK':
-                        print('Ejecutamos ' + FILE)
-                        os.system(RTP)
                 else:
                     self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
+            else:
+                self.wfile.write(b'SIP/2.0 400 Bad Request\r\n\r\n')
+            self.register2json()
 
 if __name__ == "__main__":
     parser = make_parser()
