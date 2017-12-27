@@ -27,7 +27,7 @@ class XMLHandler(ContentHandler):
             'account' : ['username', 'passwd'],
             'uaserver' : ['ip', 'puerto'],
             'rtpaudio' : ['puerto'],
-            'regproxy' : ['ip','puerto'],
+            'regproxy' : ['ip', 'puerto'],
             'log' : ['path'],
             'audio' : ['path']}
 
@@ -76,8 +76,16 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         LINE = METHOD + ' sip:' + OPTION + ' SIP/2.0\r\n\r\n'
     print('Enviando: ' + LINE)
     my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
-    data = my_socket.recv(1024)  
-    answer = data.decode('utf-8').split(' ')
+    data = my_socket.recv(1024)
+    print(data.decode('utf-8'))
+    answer = data.decode('utf-8').split()
+    if answer[1] == '401':
+        LINE = METHOD + ' sip:' + username + ':' + uaserv_port
+        LINE += ' SIP/2.0\r\n' + 'Expires:' + OPTION + '\r\n'
+        LINE += 'Authorization: Digest response = ' + 'nonce' + '\r\n\r\n'
+        my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
+        data = my_socket.recv(1024)  
+        print('Envio autorizacion: ' + LINE)
     if answer[1] == '100':
         LINE = 'ACK' + ' sip:' + OPTION + 'SIP/2.0\r\n\r\n'
         my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
