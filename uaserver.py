@@ -25,7 +25,7 @@ class XMLHandler(ContentHandler):
             'account' : ['username', 'passwd'],
             'uaserver' : ['ip', 'puerto'],
             'rtpaudio' : ['puerto'],
-            'regproxy' : ['ip','puerto'],
+            'regproxy' : ['ip', 'puerto'],
             'log' : ['path'],
             'audio' : ['path']}
 
@@ -42,33 +42,30 @@ class XMLHandler(ContentHandler):
 class EchoHandler(socketserver.DatagramRequestHandler):
 
     def handle(self):
-         for line in self.rfile:
+        while 1:
+            # Leyendo línea a línea lo que nos envía el cliente
+            line = self.rfile.read()
             if len(line) == 0:
                 break
 
-            METHOD = line.decode('utf-8').split(' ')[0]
-            METHODS = 'INVITE', 'ACK', 'BYE'
-            RTP = './mp32rtp -i 127.0.0.1 -p 23032 < ' + FILE
+            receive = line.decode('utf-8').split()
+            METHOD = receive[0]
+            METHODS = 'REGISTER', 'INVITE', 'ACK', 'BYE'
+            RTP = './mp32rtp -i 127.0.0.1 -p 23032 < ' + 'FILE'
             brline = line.decode('utf-8').split(' ')
-            if ('sip:' not in brline[1] or '@' not in brline[1] or
-               brline[2] != 'SIP/2.0\r\n\r\n'):
-                self.wfile.write(b'SIP/2.0 400 Bad Request\r\n\r\n')
+            if METHOD in METHODS:
+                print(METHOD + ' recieved')
+                if METHOD == 'INVITE':
+                    print('enviamos invite')
+                    self.wfile.write(b'SIP/2.0 100 Trying\r\n\r\n')
+                    self.wfile.write(b'SIP/2.0 180 Ringing\r\n\r\n')
+                    self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+                elif METHOD == 'BYE':
+                    self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+            elif METHOD not in METHOD:
+                self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
             else:
-                if METHOD in METHODS:
-                    print(METHOD + ' recieved')
-                    if METHOD == 'REGISTER':
-                        self.wwile.write(b'SIP/2.0 401 Unauthorized\r\n\r\n')
-                    if METHOD == 'INVITE':
-                        self.wfile.write(b'SIP/2.0 100 Trying\r\n\r\n')
-                        self.wfile.write(b'SIP/2.0 180 Ringing\r\n\r\n')
-                        self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
-                    elif METHOD == 'BYE':
-                        self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
-                    elif METHOD == 'ACK':
-                        print('Ejecutamos ' + FILE)
-                        os.system(RTP)
-                else:
-                    self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
+                self.wfile.write(b'SIP/2.0 400 Bad Request\r\n\r\n')
 
 if __name__ == "__main__":
     parser = make_parser()
@@ -76,17 +73,21 @@ if __name__ == "__main__":
     parser.setContentHandler(Handler)
     parser.parse(open(CONFIG))
     print(Handler.get_tags())
-    configtags = Handler.get_tags(
+    configtags = Handler.get_tags()
     
     username = configtags[0][1]['username']
     passwd = configtags[0][1]['passwd']
     uaserv_ip = configtags[1][1]['ip']
     uaserv_port = int(configtags[1][1]['puerto'])
-    audio_port = int(configtags[1][1]['puerto'])
+    audio_port = int(configtags[2][1]['puerto'])
     proxy_ip = configtags[3][1]['ip']
     proxy_port = int(configtags[3][1]['puerto'])
     log = configtags[4][1]['path']
     audio = configtags[5][1]['path']
+
+    print(uaserv_ip)
+    print(uaserv_port)
+
     serv = socketserver.UDPServer((uaserv_ip, uaserv_port), EchoHandler)
     print("Listening...")
     try:
