@@ -52,7 +52,7 @@ if __name__ == "__main__":
     passwd = configtags[0][1]['passwd']
     uaserv_ip = configtags[1][1]['ip']
     uaserv_port = str(configtags[1][1]['puerto'])
-    audio_port = int(configtags[1][1]['puerto'])
+    audio_port = (configtags[2][1]['puerto'])
     proxy_ip = configtags[3][1]['ip']
     proxy_port = int(configtags[3][1]['puerto'])
     log = configtags[4][1]['path']
@@ -69,7 +69,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         LINE = METHOD + ' sip:' + OPTION + ' SIP/2.0\r\n'
         SDP = 'Content-Type: application/sdp\r\n\r\n'
         SDP += 'v=0\r\n' + 'o=' + username + ' ' + uaserv_ip + '\r\n'
-        SDP += 's=sesion prueba\r\n' + 't=0\r\n'
+        SDP += 's=sesion\r\n' + 't=0\r\n'
         SDP += 'm=audio ' + audio_port + ' RTP\r\n\r\n'
         LINE += SDP
     elif METHOD == 'BYE':
@@ -78,18 +78,19 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
     my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
     data = my_socket.recv(1024)
     print(data.decode('utf-8'))
-    answer = data.decode('utf-8').split()
-    if answer[1] == '401':
+    receive = data.decode('utf-8').split()
+    if receive[1] == '401':
         LINE = METHOD + ' sip:' + username + ':' + uaserv_port
         LINE += ' SIP/2.0\r\n' + 'Expires:' + OPTION + '\r\n'
         LINE += 'Authorization: Digest response = ' + 'nonce' + '\r\n\r\n'
         my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
         data = my_socket.recv(1024)  
         print('Envio autorizacion: ' + LINE)
-    if answer[1] == '100':
+        print(data.decode('utf-8'))
+    if receive[1] == '100':
         LINE = 'ACK' + ' sip:' + OPTION + 'SIP/2.0\r\n\r\n'
         my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
-    print(data.decode('utf-8'))
+
     print("Terminando socket...")
 
 print("Fin.")
