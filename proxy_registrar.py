@@ -54,11 +54,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     def register2json(self):
         """Crea registered.json file."""
         with open('registered.json', 'w') as json_file:
-            json.dump(self.dicc, json_file, indent=3)
+            json.dump(self.dicc, json_file, indent=2)
 
     def handle(self):
         self.json2register()
-        FORMAT = '%Y-%m-%d %H:%M:%S'
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
             line = self.rfile.read()
@@ -66,7 +65,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 break
             receive = line.decode('utf-8').split()
             METHOD = receive[0]
-            METHODS = 'REGISTER', 'INVITE', 'BYE'
+            METHODS = 'REGISTER', 'INVITE', 'BYE', 'ACK'
             user = receive[1].split(':')[1]
             FORMAT = '%Y-%m-%d %H:%M:%S'
             print(receive)
@@ -79,10 +78,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     date = expires.strftime(FORMAT)
                     now = datetime.now().strftime(FORMAT)
                     if user in self.dicc:
-                        self.dicc[user] = ('Ip:' + self.client_address[0],
-                                           'Port:' + str(port),
-                                           'Registerd from: ' + now,
-                                           'Expires: ' + date)
+                        self.dicc[user] = ('Ip:' + self.client_address[0] + 
+                                           ' Port:' + str(port) + 
+                                           ' Registerd from: ' + now +
+                                           ' Expires: ' + date)
                         self.wfile.write(b'SIP/2.0 200 OK0\r\n\r\n')
                     else:
                         if len(receive) == 4:
@@ -91,20 +90,19 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                                              b"Digest nonce=" + nonce)
                             self.wfile.write(b"\r\n\r\n")
                         elif len(receive) == 9:
-                            self.dicc[user] = ('Ip: ' + self.client_address[0],
-                                               'Port: ' + str(port),
-                                               'Registerd from: ' + now,
-                                               'Expires: ' + date)
+                            self.dicc[user] = ('Ip:' + self.client_address[0] + 
+                                               ' Port:' + str(port) + 
+                                               ' Registerd from: ' + now +
+                                               ' Expires: ' + date)
                             self.wfile.write(b'SIP/2.0 200 OKa\r\n\r\n')
-                if METHOD == 'INVITE':
+                elif METHOD == 'INVITE':
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
                         dst = receive[1].split(':')[1]
                         src = receive[6].split('=')[1]
                         src_ip = receive[7]
-                        src_port = self.dicc.get(src)[1].split(':')[1]
-                        dst_ip = self.dicc.get(dst)[0].split(':')[1].split()[0]
-                        dst_port = self.dicc.get(dst)[1].split(':')[1]
-                        ip = '127.0.0.1'
+                        src_port = self.dicc.get(src).split()[1].split(':')[1]
+                        dst_ip = self.dicc.get(dst).split()[0].split(':')[1].split()[0]
+                        dst_port = self.dicc.get(dst).split()[1].split(':')[1]
                         aud_port = receive[11]
                         my_socket.connect((dst_ip, int(dst_port)))
                         LINE = "INVITE sip:" + dst + " SIP/2.0\r\n"
@@ -122,6 +120,29 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                             self.wfile.write(data)
                 elif METHOD == 'BYE':
                     self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+                elif METHOD == 'ACK':
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+                        dst = receive[1].split(':')[1]
+                        dst_ip = self.dicc.get(dst).split()[0].split(':')[1].split()[0]
+                        dst_port = self.dicc.get(dst).split()[1].split(':')[1]
+                        my_socket.connect((dst_ip, int(dst_port)))
+                        LINE = 'ACK' + ' sip:' + dst + ' SIP/2.0\r\n\r\n'
+                        my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
+                        data = my_socket.recv(1024)
+                        print(LINE)
+                elif METHOD == 'BYE':
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+                        dst = receive[1].split(':')[1]
+                        dst_ip = self.dicc.get(dst).split()[0].split(':')[1].split()[0]
+                        dst_port = self.dicc.get(dst).split()[1].split(':')[1]
+                        my_socket.connect((dst_ip, int(dst_port)))
+                        LINE = 'BYE' + ' sip:' + dst + ' SIP/2.0\r\n\r\n'
+                        my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
+                        data = my_socket.recv(1024)
+                        print(LINE)
+                        Receive = data.decode('utf-8').split(" ")
+                        self.wfile.write(data)
+                        print(data.decode("utf-8"))
             elif METHOD not in METHOD:
                 self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
             else:
