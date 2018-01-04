@@ -4,6 +4,7 @@
 Programa user agent client
 """
 
+import os
 import sys
 import socket
 import socketserver
@@ -51,11 +52,14 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             receive = line.decode('utf-8').split()
             METHOD = receive[0]
             METHODS = 'REGISTER', 'INVITE', 'ACK', 'BYE'
-            RTP = './mp32rtp -i 127.0.0.1 -p 23032 < ' + 'FILE'
-            brline = line.decode('utf-8').split(' ')
+            ip = ''
+            aud_port = ''
             if METHOD in METHODS:
                 print(METHOD + ' recieved')
+                print(receive)
                 if METHOD == 'INVITE':
+                    ip = receive[7]
+                    aud_port = [11]
                     print('enviamos invite')
                     self.wfile.write(b'SIP/2.0 100 Trying\r\n\r\n')
                     self.wfile.write(b'SIP/2.0 180 Ringing\r\n\r\n')
@@ -68,6 +72,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     self.wfile.write(SDP)
                 elif METHOD == 'BYE':
                     self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+                elif METHOD == 'ACK':
+                    RTP = "./mp32rtp -i " + ip + " -p " 
+                    RTP += aud_port + " < " + audio
+                    os.system(RTP)
             elif METHOD not in METHOD:
                 self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
             else:
