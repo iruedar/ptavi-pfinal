@@ -59,7 +59,13 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     print('enviamos invite')
                     self.wfile.write(b'SIP/2.0 100 Trying\r\n\r\n')
                     self.wfile.write(b'SIP/2.0 180 Ringing\r\n\r\n')
-                    self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+                    self.wfile.write(b'SIP/2.0 200 OK\r\n')
+                    LINE = "Content-Type: application/sdp\r\n\r\n"
+                    LINE += "v=0\r\no=" + username + " " + uaserv_ip
+                    LINE += "\r\ns=sesion" + "\r\nt=0\r\nm=audio "
+                    LINE += audio_port + " RTP"
+                    SDP = (bytes(LINE, "utf-8"))
+                    self.wfile.write(SDP)
                 elif METHOD == 'BYE':
                     self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
             elif METHOD not in METHOD:
@@ -79,14 +85,11 @@ if __name__ == "__main__":
     passwd = configtags[0][1]['passwd']
     uaserv_ip = configtags[1][1]['ip']
     uaserv_port = int(configtags[1][1]['puerto'])
-    audio_port = int(configtags[2][1]['puerto'])
+    audio_port = (configtags[2][1]['puerto'])
     proxy_ip = configtags[3][1]['ip']
     proxy_port = int(configtags[3][1]['puerto'])
     log = configtags[4][1]['path']
     audio = configtags[5][1]['path']
-
-    print(uaserv_ip)
-    print(uaserv_port)
 
     serv = socketserver.UDPServer((uaserv_ip, uaserv_port), EchoHandler)
     print("Listening...")
