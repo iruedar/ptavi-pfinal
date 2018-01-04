@@ -4,6 +4,7 @@
 Programa user agent client
 """
 
+import os
 import sys
 import json
 import time
@@ -38,6 +39,34 @@ class XMLHandler(ContentHandler):
 
     def get_tags(self):      #Devuelve la lista con elementos encontrados
         return self.list_element
+
+class Log():
+
+    def __init__(self, file_log):
+        if not os.path.exists(file_log):
+            os.system('touch ' + file_log)
+        self.log = file_log
+
+    def write_log(self, msg):
+        log_write = open(self.log, 'a')
+        log_write.write(msg)
+        log_write.close()
+
+    def time(self):
+        FORMAT = '%Y%m%d%H%M%S'
+        now = datetime.now().strftime(FORMAT)
+        return(now)
+
+    def start(self):
+        time_now = self.time()
+        msg = time_now + ' Starting...\n'
+        self.write_log(msg)
+
+    def finish(self):
+        time_now = self.time()
+        msg = time_now + ' Finishing.\n'
+        self.write_log(msg)
+
 
 class EchoHandler(socketserver.DatagramRequestHandler):
 
@@ -118,8 +147,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                         Receive = data.decode('utf-8').split(" ")
                         if Receive[1] ==  "100":
                             self.wfile.write(data)
-                elif METHOD == 'BYE':
-                    self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
                 elif METHOD == 'ACK':
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
                         dst = receive[1].split(':')[1]
@@ -162,11 +189,15 @@ if __name__ == "__main__":
     proxy_port = int(configtags[0][1]['puerto'])
     database = configtags[1][1]['path']
     passwd = configtags[1][1]['passwdpath']
-    log = configtags[2][1]['path']
+    file_log = configtags[2][1]['path']
+    log_proxy = Log(file_log)
 
     serv = socketserver.UDPServer((proxy_ip, proxy_port), EchoHandler)
+    log_proxy.start()
+
     print('Server ' + name + ' listening at port ' + str(proxy_port))
     try:
         serv.serve_forever()
     except KeyboardInterrupt:
+        log_proxy.finish()
         print('servidor finalizado')
