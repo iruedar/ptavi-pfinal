@@ -14,7 +14,6 @@ import socketserver
 import socket as skt
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-from datetime import datetime, date, time, timedelta
 
 
 class XMLHandler(ContentHandler):
@@ -50,8 +49,7 @@ class Log():
         log_write.close()
 
     def time(self):
-        FORMAT = '%Y%m%d%H%M%S'
-        now = datetime.now().strftime(FORMAT)
+        now = time.strftime("%Y%m%d%H%M%S ", time.gmtime(time.time()))
         return(now)
 
     def sent_to(self, ip, port, mnsg):
@@ -72,9 +70,9 @@ class Log():
         msg += mnsg.replace('\r\n', ' ') + '\r\n'
         self.write_log(msg)
     
-    def ejecutando(self, ip, port, mnsg):
+    def ejecutando(self, mnsg):
         time_now = self.time()
-        msg = time_now + ' Ejecutando canción ' + ip + ':' + str(port) + ': '
+        msg = time_now + ' Ejecutando... '
         msg += mnsg.replace('\r\n', ' ') + '\r\n'
         self.write_log(msg)
 
@@ -121,22 +119,23 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         """Crea registered.json file."""
         with open(database, 'w') as json_file:
             json.dump(self.dicc, json_file, indent=2)
-            
+
     def delete(self):
 
         delete_list = []
-        FORMAT = '%Y-%m-%d %H:%M:%S'
         for client in self.dicc:
-            self.expire = self.dicc[client][-1]
-            now = datetime.now().strftime(FORMAT)
-            if self.expire < now:
+            expire = self.dicc[client].split('Expires: ')[-1]
+            now = str(time.time())
+            if expire <= now:
                 delete_list.append(client)
+                print('Borrado' + client)
         for cliente in delete_list:
             del self.dicc[cliente]
         self.register2json()
 
     def handle(self):
         self.json2register()
+        self.delete()
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
             line = self.rfile.read()
@@ -147,36 +146,37 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             METHOD = receive[0]
             METHODS = 'REGISTER', 'INVITE', 'BYE', 'ACK'
             user = receive[1].split(':')[1]
-            FORMAT = '%Y-%m-%d %H:%M:%S'
+            port = str(self.client_address[1])
+            ip = self.client_address[0]
             nonce = str(random.randint(00000000,99999999))
             print(receive)
             if METHOD in METHODS:
                 print(METHOD + ' recieved')
                 if METHOD == 'REGISTER':
                     sec = receive[3].split(':')[1]
-                    port = str(receive[1].split(':')[2])
-                    ip = self.client_address[0]
-                    expires = datetime.now() + timedelta(seconds=int(sec))
-                    date = expires.strftime(FORMAT)
-                    now = datetime.now().strftime(FORMAT)
+                    now = time.time()
+                    expires = now + float(sec)
                     log_proxy.received_from(ip, port, mnsg)
+                    serv_port = str(receive[1].split(':')[2])
                     try:
                         if int(sec) == 0:
                             del self.dicc[user]
-                            self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+                            msg = 'SIP/2.0 200 OK\r\n\r\n'
+                            self.wfile.write(bytes(msg, 'utf-8'))
+                            log_proxy.sent_to(ip, port, msg)
                         else:
                             if user in self.dicc:
                                 self.dicc[user] = ('Ip:' + ip +
-                                                   ' Port:' + port +
-                                                   ' Registered: ' + now +
-                                                   ' Expires: ' + date)
+                                                   ' Port:' + serv_port +
+                                                   ' Registered: ' + str(now) +
+                                                   ' Expires: ' + str(expires))
                                 self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
                                 log_proxy.sent_to(ip, port, 'SIP/2.0 200 OK')
                             else:
                                 if len(receive) == 4:
                                     self.nonce[user] = nonce
                                     Authen = 'SIP/2.0 401 Unauthorized\r\n'
-                                    Authen += 'WWW Authenticate: Digest nonce='
+                                    Authen += 'WWW-Authenticate: Digest nonce='
                                     Authen += self.nonce[user] + '\r\n\r\n'
                                     self.wfile.write(bytes(Authen, 'utf-8'))
                                     log_proxy.sent_to(ip, port, Authen)
@@ -185,35 +185,36 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                                     respse = checknonce(self.nonce[user], user)
                                     if client_response == respse:
                                         self.dicc[user] = ('Ip:' + ip +
-                                                           ' Port:' + port +
+                                                           ' Port:' + 
+                                                           serv_port +
                                                            ' Registered: ' +
-                                                           now + ' Expires: ' +
-                                                           date)
+                                                           str(now) + 
+                                                           ' Expires: ' +
+                                                           str(expires))
                                         msg = 'SIP/2.0 200 OK\r\n\r\n'
                                         self.wfile.write(bytes(msg, 'utf-8'))
                                         log_proxy.sent_to(ip, port, msg)
                                     else:
                                         error = 'Contraseña incorrecta'
                                         print(error)
-                                        log_proxy.erro(error)
+                                        log_proxy.error(error)
                     except KeyError:
-                        message = 'SIP/2.0 404 User Not Found\r\n\r\n'
-                        self.wfile.write(bytes(message, 'utf-8'))
-                        log_proxy.sent_to(ip, port, message)
+                        msg = 'SIP/2.0 404 User Not Found\r\n\r\n'
+                        self.wfile.write(bytes(msg, 'utf-8'))
+                        log_proxy.sent_to(ip, port, msg)
                 elif METHOD == 'INVITE':
                     try:
                         with skt.socket(skt.AF_INET, skt.SOCK_DGRAM) as sck:
-                            src = receive[6].split('=')[1]
-                            src_ip = receive[7]
-                            src_port = self.dicc.get(src).split()[1]
-                            src_port = src_port.split(':')[1]
-                            log_proxy.received_from(src_ip, src_port, mnsg)
+                            log_proxy.received_from(ip, port, mnsg)
                             if user in self.dicc:
                                 dst = receive[1].split(':')[1]
                                 dst_ip = self.dicc.get(dst).split()[0]
                                 dst_ip = dst_ip.split(':')[1].split()[0]
                                 dst_port = self.dicc.get(dst).split()[1]
                                 dst_port = dst_port.split(':')[1]
+                                print(dst_ip)
+                                print(dst_port)
+                                print(dst)
                                 sck.connect((dst_ip, int(dst_port)))
                                 sck.send(bytes(mnsg, 'utf-8'))
                                 log_proxy.sent_to(dst_ip, dst_port, mnsg)
@@ -225,37 +226,34 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                                 log_proxy.received_from(dst_ip, dst_port, msg)
                                 if Receive[1] == "100":
                                     self.wfile.write(data)
-                                    log_proxy.sent_to(src_ip, src_port, msg)
+                                    log_proxy.sent_to(ip, port, msg)
                             else:
-                                message = "SIP/2.0 404 User Not Found\r\n\r\n"
-                                self.wfile.write(bytes(message, 'utf-8'))
-                                log_proxy.sent_to(src_ip, src_port, message)
+                                msg = 'SIP/2.0 404 User Not Found\r\n\r\n'
+                                self.wfile.write(bytes(msg, 'utf-8'))
+                                log_proxy.sent_to(ip, port, msg)
+                                print(msg)
                     except ConnectionRefusedError:
-                        error = "No server listening "
+                        error = 'Connection Refused'
                         log_proxy.error(error)
-                        sys.exit(error)
+                        print(error)
                 elif METHOD == 'ACK':
                     with skt.socket(skt.AF_INET, skt.SOCK_DGRAM) as my_socket:
-                        src_ip = self.client_address[0]
-                        src_port = self.client_address[1]
                         dst = receive[1].split(':')[1]
                         dst_ip = self.dicc.get(dst).split()[0]
                         dst_ip = dst_ip.split(':')[1].split()[0]
                         dst_port = self.dicc.get(dst).split()[1].split(':')[1]
-                        log_proxy.received_from(src_ip, src_port, mnsg)
+                        log_proxy.received_from(ip, port, mnsg)
                         my_socket.connect((dst_ip, int(dst_port)))
                         my_socket.send(bytes(mnsg, 'utf-8'))
                         log_proxy.sent_to(dst_ip, dst_port, mnsg)
                         print(mnsg)
                 elif METHOD == 'BYE':
                     with skt.socket(skt.AF_INET, skt.SOCK_DGRAM) as my_socket:
-                        src_ip = self.client_address[0]
-                        src_port = self.client_address[1]
                         dst = receive[1].split(':')[1]
                         dst_ip = self.dicc.get(dst).split()[0]
                         dst_ip = dst_ip.split(':')[1].split()[0]
                         dst_port = self.dicc.get(dst).split()[1].split(':')[1]
-                        log_proxy.received_from(src_ip, src_port, mnsg)
+                        log_proxy.received_from(ip, port, mnsg)
                         my_socket.connect((dst_ip, int(dst_port)))
                         my_socket.send(bytes(mnsg, 'utf-8'))
                         log_proxy.sent_to(dst_ip, dst_port, mnsg)
@@ -265,15 +263,16 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                         Receive = msg.split(" ")
                         log_proxy.received_from(dst_ip, dst_port, msg)
                         self.wfile.write(data)
-                        log_proxy.sent_to(src_ip, src_port, msg)
+                        log_proxy.sent_to(ip, port, msg)
                         print(data.decode("utf-8"))
             elif METHOD not in METHOD:
                 error = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
                 self.wfile.write(bytes(error, 'utf-8'))
+                log_proxy.error(error)
             else:
                 error = 'SIP/2.0 400 Bad Request\r\n\r\n'
                 self.wfile.write(bytes(error, 'utf-8'))
-            self.delete()
+                log_proxy.error(error)
             self.register2json()
 
 if __name__ == "__main__":
