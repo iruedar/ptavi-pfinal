@@ -9,6 +9,7 @@ import sys
 import socket
 import socketserver
 from xml.sax import make_parser
+from proxy_registrar import Log
 from xml.sax.handler import ContentHandler
 
 USAGE = 'python3 uaserver.py config'
@@ -49,17 +50,15 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             if len(line) == 0:
                 break
 
-            receive = line.decode('utf-8').split()
+            mnsg = line.decode('utf-8')
+            receive = mnsg.split()
             METHOD = receive[0]
             METHODS = 'REGISTER', 'INVITE', 'ACK', 'BYE'
-            ip = ''
-            aud_port = ''
             if METHOD in METHODS:
                 print(METHOD + ' recieved')
+                log.received_from(proxy_ip, proxy_port, mnsg)
                 print(receive)
                 if METHOD == 'INVITE':
-                    ip = receive[7]
-                    aud_port = [11]
                     print('enviamos invite')
                     self.wfile.write(b'SIP/2.0 100 Trying\r\n\r\n')
                     self.wfile.write(b'SIP/2.0 180 Ringing\r\n\r\n')
@@ -69,17 +68,28 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     LINE += "\r\ns=sesion" + "\r\nt=0\r\nm=audio "
                     LINE += audio_port + " RTP"
                     SDP = (bytes(LINE, "utf-8"))
+                    sent = 'SIP/2.0 100 Trying SIP/2.0 180 Ringing'
+                    sent += ' SIP/2.0 200 OK ' + LINE
                     self.wfile.write(SDP)
-                elif METHOD == 'BYE':
-                    self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+                    log.sent_to(proxy_ip, proxy_port, sent)
                 elif METHOD == 'ACK':
-                    RTP = "./mp32rtp -i " + ip + " -p " 
-                    RTP += aud_port + " < " + audio
+                    RTP = './mp32rtp -i ' + uaserv_ip + ' -p '  
+                    RTP += audio_port + " < " + audio
+                    log.ejecutando(RTP)
+                    print('Ejecutando... ', RTP)
                     os.system(RTP)
+                elif METHOD == 'BYE':
+                    msg = 'SIP/2.0 200 OK\r\n\r\n'
+                    self.wfile.write(bytes(msg, 'utf-8'))
+                    log.sent_to(proxy_ip, proxy_port, msg)
             elif METHOD not in METHOD:
-                self.wfile.write(b'SIP/2.0 405 Method Not Allowed\r\n\r\n')
+                error = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
+                self.wfile.write(bytes(error, 'utf-8'))
+                log.error(error)
             else:
-                self.wfile.write(b'SIP/2.0 400 Bad Request\r\n\r\n')
+                error = 'SIP/2.0 400 Bad Request\r\n\r\n'
+                self.wfile.write(bytes(error, 'utf-8'))
+                log.error(error)
 
 if __name__ == "__main__":
     parser = make_parser()
@@ -92,16 +102,21 @@ if __name__ == "__main__":
     username = configtags[0][1]['username']
     passwd = configtags[0][1]['passwd']
     uaserv_ip = configtags[1][1]['ip']
+    if uaserv_ip == '':
+        uaserv_ip = "127.0.0.1"
     uaserv_port = int(configtags[1][1]['puerto'])
     audio_port = (configtags[2][1]['puerto'])
     proxy_ip = configtags[3][1]['ip']
     proxy_port = int(configtags[3][1]['puerto'])
-    log = configtags[4][1]['path']
+    file_log = configtags[4][1]['path']
     audio = configtags[5][1]['path']
+    log = Log(file_log)
+    log.start()
 
     serv = socketserver.UDPServer((uaserv_ip, uaserv_port), EchoHandler)
     print("Listening...")
     try:
         serv.serve_forever()
     except KeyboardInterrupt:
+        log.finish()
         print('servidor finalizado')
