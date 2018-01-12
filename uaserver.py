@@ -44,6 +44,8 @@ class XMLHandler(ContentHandler):
 
 class EchoHandler(socketserver.DatagramRequestHandler):
 
+    rtp_port = []
+
     def handle(self):
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
@@ -59,6 +61,8 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 print(METHOD + ' recieved')
                 log.received_from(proxy_ip, proxy_port, mnsg)
                 if METHOD == 'INVITE':
+                    self.rtp_port.append(receive[-2])
+                    print(self.rtp_port)
                     print('enviamos invite')
                     self.wfile.write(b'SIP/2.0 100 Trying\r\n\r\n')
                     self.wfile.write(b'SIP/2.0 180 Ringing\r\n\r\n')
@@ -74,7 +78,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     log.sent_to(proxy_ip, proxy_port, sent)
                 elif METHOD == 'ACK':
                     RTP = './mp32rtp -i ' + uaserv_ip + ' -p '
-                    RTP += audio_port + " < " + audio
+                    RTP += self.rtp_port[0] + " < " + audio
                     log.ejecutando(RTP)
                     print('Ejecutando... ', RTP)
                     os.system(RTP)

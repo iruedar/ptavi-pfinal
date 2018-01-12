@@ -87,6 +87,7 @@ try:
             print('Envio autorizacion: ' + LINE)
             print(data.decode('utf-8'))
         elif receive[1] == '100':
+            aud_port_emisor = receive[-2]
             LINE = 'ACK' + ' sip:' + OPTION + ' SIP/2.0\r\n\r\n'
             my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
             log.sent_to(proxy_ip, proxy_port, LINE)
@@ -94,7 +95,7 @@ try:
             print('Envio ack: ' + LINE)
             print(data.decode('utf-8'))
             RTP = './mp32rtp -i ' + uaserv_ip + ' -p '
-            RTP += audio_port + " < " + audio
+            RTP += aud_port_emisor + " < " + audio
             log.ejecutando(RTP)
             print('Ejecutando... ', RTP)
             os.system(RTP)
