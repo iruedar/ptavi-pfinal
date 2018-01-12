@@ -77,6 +77,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     self.wfile.write(SDP)
                     log.sent_to(proxy_ip, proxy_port, sent)
                 elif METHOD == 'ACK':
+                    cvlc = 'cvlc rtp://@' + uaserv_ip + ':' + self.rtp_port[0]
+                    log.ejecutando(cvlc)
+                    print('Ejecutando... ', cvlc)
+                    os.system(cvlc)
                     RTP = './mp32rtp -i ' + uaserv_ip + ' -p '
                     RTP += self.rtp_port[0] + " < " + audio
                     log.ejecutando(RTP)

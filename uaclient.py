@@ -94,6 +94,10 @@ try:
             data = my_socket.recv(1024)
             print('Envio ack: ' + LINE)
             print(data.decode('utf-8'))
+            cvlc = 'cvlc rtp://@' + uaserv_ip + ':' + aud_port_emisor
+            log.ejecutando(cvlc)
+            print('Ejecutando... ', cvlc)
+            os.system(cvlc)
             RTP = './mp32rtp -i ' + uaserv_ip + ' -p '
             RTP += aud_port_emisor + " < " + audio
             log.ejecutando(RTP)
