@@ -1,4 +1,3 @@
-
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
@@ -84,7 +83,7 @@ try:
             LINE += 'Authorization: Digest response = ' + response + '\r\n\r\n'
             my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
             log.sent_to(proxy_ip, proxy_port, LINE)
-            data = my_socket.recv(1024)  
+            data = my_socket.recv(1024)
             print('Envio autorizacion: ' + LINE)
             print(data.decode('utf-8'))
         elif receive[1] == '100':
@@ -94,13 +93,13 @@ try:
             data = my_socket.recv(1024)
             print('Envio ack: ' + LINE)
             print(data.decode('utf-8'))
-            RTP = './mp32rtp -i ' + uaserv_ip + ' -p '  
+            RTP = './mp32rtp -i ' + uaserv_ip + ' -p '
             RTP += audio_port + " < " + audio
             log.ejecutando(RTP)
             print('Ejecutando... ', RTP)
             os.system(RTP)
 except IndexError:
-    error =  ('SIP/2.0 404 User Not Found\r\n\r\n')
+    error = ('SIP/2.0 404 User Not Found\r\n\r\n')
     log.error(error)
     sys.exit(error)
 
