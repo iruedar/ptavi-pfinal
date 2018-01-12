@@ -12,34 +12,35 @@ from xml.sax import make_parser
 from proxy_registrar import Log
 from xml.sax.handler import ContentHandler
 
-USAGE = 'python3 uaserver.py config'
 
 try:
     CONFIG = sys.argv[1]
 except IndexError:
-    sys.exit('Usage: ' + USAGE)
+    sys.exit('Usage: ' + 'python3 uaserver.py config')
+
 
 class XMLHandler(ContentHandler):
 
-    def __init__(self):     #Declaramos las listas de los elementos
+    def __init__(self):     # Declaramos las listas de los elementos
         self.list_element = []
         self.element = {
-            'account' : ['username', 'passwd'],
-            'uaserver' : ['ip', 'puerto'],
-            'rtpaudio' : ['puerto'],
-            'regproxy' : ['ip', 'puerto'],
-            'log' : ['path'],
-            'audio' : ['path']}
+            'account': ['username', 'passwd'],
+            'uaserver': ['ip', 'puerto'],
+            'rtpaudio': ['puerto'],
+            'regproxy': ['ip', 'puerto'],
+            'log': ['path'],
+            'audio': ['path']}
 
-    def startElement(self, name, element):      #Añade elementos
+    def startElement(self, name, element):      # Añade elementos
         dicc = {}
         if name in self.element:
             for elment in self.element[name]:
                 dicc[elment] = element.get(elment, '')
             self.list_element.append([name, dicc])
 
-    def get_tags(self):      #Devuelve la lista con elementos encontrados
+    def get_tags(self):      # Devuelve la lista con elementos encontrados
         return self.list_element
+
 
 class EchoHandler(socketserver.DatagramRequestHandler):
 
@@ -57,7 +58,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             if METHOD in METHODS:
                 print(METHOD + ' recieved')
                 log.received_from(proxy_ip, proxy_port, mnsg)
-                print(receive)
                 if METHOD == 'INVITE':
                     print('enviamos invite')
                     self.wfile.write(b'SIP/2.0 100 Trying\r\n\r\n')
@@ -73,7 +73,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     self.wfile.write(SDP)
                     log.sent_to(proxy_ip, proxy_port, sent)
                 elif METHOD == 'ACK':
-                    RTP = './mp32rtp -i ' + uaserv_ip + ' -p '  
+                    RTP = './mp32rtp -i ' + uaserv_ip + ' -p '
                     RTP += audio_port + " < " + audio
                     log.ejecutando(RTP)
                     print('Ejecutando... ', RTP)
@@ -96,9 +96,8 @@ if __name__ == "__main__":
     Handler = XMLHandler()
     parser.setContentHandler(Handler)
     parser.parse(open(CONFIG))
-    print(Handler.get_tags())
     configtags = Handler.get_tags()
-    
+
     username = configtags[0][1]['username']
     passwd = configtags[0][1]['passwd']
     uaserv_ip = configtags[1][1]['ip']
