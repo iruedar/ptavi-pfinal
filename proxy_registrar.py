@@ -69,7 +69,7 @@ class Log():
         msg = time_now + ' Error: '
         msg += mnsg.replace('\r\n', ' ') + '\r\n'
         self.write_log(msg)
-    
+
     def ejecutando(self, mnsg):
         time_now = self.time()
         msg = time_now + ' Ejecutando... '
@@ -86,6 +86,7 @@ class Log():
         msg = time_now + ' Finishing.\n'
         self.write_log(msg)
 
+
 def passwords(user):
     with open(passwd, 'r') as passwd_file:
         for line in passwd_file:
@@ -93,6 +94,7 @@ def passwords(user):
             if user == user_file:
                 password = line.split()[2].split('=')[1]
         return password
+
 
 def checknonce(nonce, user):
     fun_check = hashlib.md5()
@@ -148,8 +150,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             user = receive[1].split(':')[1]
             port = str(self.client_address[1])
             ip = self.client_address[0]
-            nonce = str(random.randint(00000000,99999999))
-            print(receive)
+            nonce = str(random.randint(00000000, 99999999))
             if METHOD in METHODS:
                 print(METHOD + ' recieved')
                 if METHOD == 'REGISTER':
@@ -185,10 +186,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                                     respse = checknonce(self.nonce[user], user)
                                     if client_response == respse:
                                         self.dicc[user] = ('Ip:' + ip +
-                                                           ' Port:' + 
+                                                           ' Port:' +
                                                            serv_port +
                                                            ' Registered: ' +
-                                                           str(now) + 
+                                                           str(now) +
                                                            ' Expires: ' +
                                                            str(expires))
                                         msg = 'SIP/2.0 200 OK\r\n\r\n'
@@ -282,7 +283,6 @@ if __name__ == "__main__":
         Handler = XMLHandler()
         parser.setContentHandler(Handler)
         parser.parse(open(CONFIG))
-        print(Handler.get_tags())
         configtags = Handler.get_tags()
     except FileNotFoundError:
         error = 'File not found'
